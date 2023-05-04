@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import words from "./wordList.json"
 import { HangmanDrawing } from "./HangmanDrawing"
 import { HangmanWord } from "./HangmanWord"
@@ -11,6 +11,37 @@ function App() {
 
   const [guessedLetters, setGuessedLetters] = useState<string[]>([])
 
+  const incorrectLetters = guessedLetters.filter(
+    letter => wordToGuess.includes(letter)
+  )
+
+  const isLoser = incorrectLetters.length >= 7
+  const isWinner = wordToGuess
+  .split('')
+  .every(letter => guessedLetters.includes(letter))
+
+  const addGuessedLetter = useCallback((letter: string) => {
+    if(guessedLetters.includes(letter) || isLoser || isWinner) return
+    setGuessedLetters(currentLetters => [...currentLetters, letter])
+  }, [guessedLetters, isWinner, isLoser])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const key = e.key
+
+      if(!key.match(/^[a-z]$/)) return
+
+      e.preventDefault()
+      addGuessedLetter(key)
+    }
+
+    document.removeEventListener('keypress', handler)
+
+    return () => {
+      document.removeEventListener('keypress', handler)
+    }
+  },[guessedLetters])
+
   return <div style={{
     maxWidth: "800px",
     display: "flex",
@@ -21,12 +52,21 @@ function App() {
   }}>
 
     <div style={{fontSize: "2rem", textAlign:"center"}}>
-      Lose
-      Win
+      {isWinner && 'Winner! - Refresh to try again.'}
+      {isLoser && 'Nice try - Refresh to try again.'}
     </div>
-    <HangmanDrawing/>
-    <HangmanWord/>
-    <Keyboard/>
+    <HangmanDrawing numberOfGuesses={incorrectLetters.length}/>
+    <HangmanWord guessedLtters={guessedLetters} wordToGuess={wordToGuess}/>
+    <div style={{alignSelf: 'stretch'}}>
+      <Keyboard 
+      disabled={isWinner || isLoser}
+      activeLetters={guessedLetters.filter(letter => {
+        wordToGuess.includes(letter)
+      })}
+      inactiveLetters={incorrectLetters}
+      addGuessedLetter={addGuessedLetter}
+      />
+    </div>
   </div>
 }
 
